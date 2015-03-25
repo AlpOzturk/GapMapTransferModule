@@ -1,3 +1,4 @@
 *.pyc
 *.txt
-*credentials.py
+credentials.py
+alembic.ini

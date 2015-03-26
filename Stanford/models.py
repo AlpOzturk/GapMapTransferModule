@@ -1,5 +1,5 @@
 
-from info_manager import db
+from gm_server import db
 
 MAX_STR_LEN = 200
 

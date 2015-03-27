@@ -20,20 +20,20 @@ def homepage():
     abort(403)
 
 @app.route('/testDatabase', methods=['GET'])
-def addStringToDatabase():
-    toAdd = request.args.get("toAdd")
-    if toAdd:
-        new_test = models.Test(toAdd)
+def add_string_to_database():
+    to_add = request.args.get("toAdd")
+    if to_add:
+        new_test = models.Test(to_add)
         new_test.save()
-    inFileName = request.args.get("file")
-    if inFileName:
-        inFile = open(inFileName, "r")
-        for line in inFile:
+    in_file_name = request.args.get("file")
+    if in_file_name:
+        in_file = open(in_file_name, "r")
+        for line in in_file:
             name = line.strip()
             if name:
                 new_test = models.Test(name)
                 new_test.save()
-        inFile.close()
+        in_file.close()
     tests = models.Test.get_all()
     strings = [test.name for test in tests]
     return TEST_DELIM.join(strings)

@@ -28,7 +28,7 @@ def upgrade():
         sa.Column('contractable', sa.Boolean, default=False),
         sa.Column('subscribable', sa.Boolean, default=False),
         sa.Column('date', sa.Date),
-        sa.Column('last_updated', sa.DateTime())
+        sa.Column('last_updated', sa.DateTime)
     )
 
     op.create_table(
@@ -49,7 +49,7 @@ def upgrade():
         sa.Column('zip', sa.Integer),
         sa.Column('latitude', sa.Float),
         sa.Column('longitude', sa.Float),
-        sa.Column('last_updated', sa.DateTime())
+        sa.Column('last_updated', sa.DateTime)
     )
 
 

@@ -67,7 +67,7 @@ def enter_data(data):
     name, second_name, email, contactable, subscribable, date = data[:6]
     contactable = bool(contactable)
     subscribable = bool(subscribable)
-    contact = models.Contact.get_by_email(email)
+    contact = models.Contact.get_by_email(email) if email else None
     if contact:
         contact.update(name, second_name, email, contactable, subscribable, date)
     else:

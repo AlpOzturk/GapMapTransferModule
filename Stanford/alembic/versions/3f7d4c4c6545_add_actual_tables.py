@@ -19,6 +19,7 @@ import sqlalchemy as sa
 
 
 def upgrade():
+    op.drop_table('test')
     op.create_table(
         'contacts',
         sa.Column('id', sa.Integer, primary_key=True),
@@ -30,7 +31,6 @@ def upgrade():
         sa.Column('date', sa.Date),
         sa.Column('last_updated', sa.DateTime)
     )
-
     op.create_table(
         'participants',
         sa.Column('id', sa.Integer, primary_key=True),
@@ -39,14 +39,13 @@ def upgrade():
         sa.Column('gender', sa.String(255)),
         sa.Column('diagnosis', sa.String(255)),
         sa.Column('diagnosis_date', sa.Date),
-        sa.Column('related_disorder_id', sa.Integer),
         sa.Column('ados', sa.Boolean),
         sa.Column('adir', sa.Boolean),
         sa.Column('other_diagnosis_tool', sa.String(255)),
         sa.Column('city', sa.String(255)),
         sa.Column('state', sa.String(255)),
         sa.Column('country', sa.String(255)),
-        sa.Column('zip', sa.Integer),
+        sa.Column('zip_code', sa.Integer),
         sa.Column('latitude', sa.Float),
         sa.Column('longitude', sa.Float),
         sa.Column('last_updated', sa.DateTime)
@@ -56,3 +55,8 @@ def upgrade():
 def downgrade():
     op.drop_table('contacts')
     op.drop_table('participants')
+    op.create_table(
+        'test',
+        sa.Column('id', sa.Integer, primary_key=True),
+        sa.Column('name', sa.String(200), nullable=False)
+    )

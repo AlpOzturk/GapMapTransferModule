@@ -1,10 +1,10 @@
 
 import datetime
 
-from gm_server import db
+from gm_server import db, TEST_DELIM
 
+DATE_FORMAT = '%Y-%m-%d'
 MAX_STR_LEN = 255
-DELIMITER = '\t'
 
 class Test(db.Model):
 
@@ -27,8 +27,6 @@ class Test(db.Model):
 
 class Contact(db.Model):
 
-    DATE_FORMAT = '%Y-%m-%d'
-
     __tablename__ = 'contacts'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(MAX_STR_LEN))
@@ -40,26 +38,81 @@ class Contact(db.Model):
     last_updated = db.Column(db.DateTime)
 
     def __init__(self, name, second_name, email, contactable, subscribable, date):
-        if name and email and date:
-            self.name = name
-            self.second_name = second_name
-            self.email = email
-            self.contactable = contactable
-            self.subscribable = subscribable
-            self.date = datetime.datetime.strptime(date, self.DATE_FORMAT)
-            self.last_updated = datetime.datetime.now()
-        else:
-            raise Exception('Missing mandatory field')
+        self.update(name, second_name, email, contactable, subscribable, date)
 
     @classmethod
     def get_all(cls):
-        return cls.query.all() 
+        return cls.query.all()
+
+    @classmethod
+    def get_by_email(cls, email):
+        return cls.query.filter(cls.email == email).first() 
+
+    def update(self, name, second_name, email, contactable, subscribable, date):
+        if name and email and date:
+            self.name = name
+            self.second_name = second_name if second_name else None
+            self.email = email
+            self.contactable = contactable
+            self.subscribable = subscribable
+            self.date = datetime.datetime.strptime(date, DATE_FORMAT)
+            self.last_updated = datetime.datetime.now()
+        else:
+            raise Exception('Missing mandatory field')        
 
     def save(self):
         db.session.add(self)
         db.session.commit()
 
     def to_string(self):
-        to_return = [self.name, str(self.second_name), self.email,str(self.contactable)]
-        to_return.extend([str(self.subscribable),str(self.date),str(self.last_updated)])
-        return DELIMITER.join(to_return)
+        to_return = [str(self.id), self.name, str(self.second_name), self.email, str(self.contactable), str(self.subscribable), str(self.date), str(self.last_updated)]
+        return TEST_DELIM.join(to_return)
+
+class Participant(db.Model):
+
+    __tablename__ = 'participants'
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(db.Integer, nullable=False)
+    birthday = db.Column(db.Date)
+    gender = db.Column(db.String(MAX_STR_LEN))
+    diagnosis = db.Column(db.String(MAX_STR_LEN))
+    diagnosis_date = db.Column(db.Date)
+    ados = db.Column(db.Boolean)
+    adir = db.Column(db.Boolean)
+    other_diagnosis_tool = db.Column(db.String(MAX_STR_LEN))
+    city = db.Column(db.String(MAX_STR_LEN))
+    state = db.Column(db.String(MAX_STR_LEN))
+    country = db.Column(db.String(MAX_STR_LEN))
+    zip_code = db.Column(db.Integer)
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    last_updated = db.Column(db.DateTime)
+
+    def __init__(self, param_map):
+        self.contact_id = param_map['contact_id']
+        self.birthday = datetime.datetime.strptime(param_map['birthday'], DATE_FORMAT)
+        self.gender = param_map['gender']
+        self.diagnosis = param_map['diagnosis']
+        self.diagnosis_date = datetime.datetime.strptime(param_map['diagnosis_date'], DATE_FORMAT)
+        self.ados = param_map['ados']
+        self.adir = param_map['adir']
+        self.other_diagnosis_tool = param_map.get('other_diagnosis_tool', None)
+        self.city = param_map['city']
+        self.state = param_map['state']
+        self.country = param_map['country']
+        self.zip_code = param_map['zip_code']
+        self.latitude = param_map['latitude']
+        self.longitude = param_map['longitude']
+        self.last_updated = datetime.datetime.now()
+
+    @classmethod
+    def get_all(cls):
+        return cls.query.all()
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def to_string(self):
+        to_return = [str(self.id), str(self.contact_id), str(self.birthday), self.gender, self.diagnosis, str(self.diagnosis_date), str(self.ados), str(self.adir), str(self.other_diagnosis_tool), self.city, self.state, self.country, str(self.zip_code), str(self.latitude), str(self.longitude), str(self.last_updated)]
+        return TEST_DELIM.join(to_return)

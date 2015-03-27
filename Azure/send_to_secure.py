@@ -2,13 +2,11 @@
 import sys
 import random
 
-DELIMITER_INDEX = 0
-DATA_INDEX = 1
 AN_ARBITRARY_LARGE_NUMBER = 4242424242421337424242
 FILE_TYPE = '.txt'
 
 TEST_DELIMITER = '\t'
-TEST_DATA = 'Joe\t\tjoe@gmail.com\tyes\t\t2015-02-18'
+TEST_DATA = 'Bob\tJack\tbob@gmail.com\t\ty\t2015-02-18\t1993-02-13\tmale\ttypeI autism\t2000-03-12\t\ty\tnice tool\tPalo Alto\tCA\tUSA\t34000\t1.1234\t11.9884'
 
 def process_info():
     raw_data, delimiter = get_params(sys.argv)

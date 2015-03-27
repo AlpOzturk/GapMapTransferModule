@@ -25,7 +25,7 @@ def upgrade():
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('second_name', sa.String(255)),
         sa.Column('email', sa.String(255)),
-        sa.Column('contractable', sa.Boolean, default=False),
+        sa.Column('contactable', sa.Boolean, default=False),
         sa.Column('subscribable', sa.Boolean, default=False),
         sa.Column('date', sa.Date),
         sa.Column('last_updated', sa.DateTime)

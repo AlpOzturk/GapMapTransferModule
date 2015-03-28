@@ -88,13 +88,22 @@ def enter_data(data):
     p_map['zip_code'] = int(data[16])
     p_map['latitude'] = float(data[17])
     p_map['longitude'] = float(data[18])
+    p_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in data[19].split(SUB_DELIM)]
+    p_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in data[20].split(SUB_DELIM)]
     new_participant = models.Participant(p_map)
     new_participant.save()
     all_contacts = models.Contact.get_all()
     all_participants = models.Participant.get_all()
     all_contacts_str = '<br>'.join([con.to_string() for con in all_contacts])
     all_participants_str = '<br>'.join([par.to_string() for par in all_participants])
-    return '<br>'.join([contact.to_string(), new_participant.to_string(), all_contacts_str, all_participants_str])
+    return '<br><br>'.join([contact.to_string(), new_participant.to_string(), all_contacts_str, all_participants_str, models.Resource.get_all_str(), models.Disorder.get_all_str()])
+
+def get_by_name(target_class, name):
+    instance = target_class.get_by_name(name)
+    if not instance:
+        instance = target_class(name)
+        instance.save()
+    return instance
 
 # Run app
 

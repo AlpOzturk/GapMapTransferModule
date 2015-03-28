@@ -1,10 +1,24 @@
 
 import datetime
 
-from gm_server import db, TEST_DELIM
+from gm_server import db, SUB_DELIM, TEST_DELIM
 
 DATE_FORMAT = '%Y-%m-%d'
 MAX_STR_LEN = 255
+
+participant_resources_table = db.Table(
+    'participant_resources',
+    db.Column('participant_id', db.Integer, db.ForeignKey('participants.id'), primary_key=True),
+    db.Column('resource_id', db.Integer, db.ForeignKey('resources.id'), primary_key=True)
+)
+
+participant_related_disorders_table = db.Table(
+    'participant_related_disorders',
+    db.Column('participant_id', db.Integer, db.ForeignKey('participants.id'), primary_key=True),
+    db.Column('disorder_id', db.Integer, db.ForeignKey('related_disorders.id'), primary_key=True)
+)
+
+
 
 class Test(db.Model):
 
@@ -89,6 +103,18 @@ class Participant(db.Model):
     longitude = db.Column(db.Float)
     last_updated = db.Column(db.DateTime)
 
+    participant_resources = db.relationship('Resource',
+        secondary=participant_resources_table,
+        lazy='dynamic',
+        backref=db.backref('participant', lazy='dynamic')
+    )
+
+    participant_related_disorders = db.relationship('Disorder',
+        secondary=participant_related_disorders_table,
+        lazy='dynamic',
+        backref=db.backref('participant', lazy='dynamic')
+    )
+
     def __init__(self, param_map):
         # Mandatory: birthday, gender, ados, adir, diagnosis, and location (city/country, latitude/longitude)
         self.contact_id = param_map['contact_id']
@@ -106,6 +132,12 @@ class Participant(db.Model):
         self.zip_code = param_map.get('zip_code', None)
         self.latitude = param_map['latitude']
         self.longitude = param_map['longitude']
+        resources = param_map['resources']
+        for resource in resources:
+            self.participant_resources.append(resource)
+        related_disorders = param_map['related_disorders']
+        for disorder in related_disorders:
+            self.participant_related_disorders.append(disorder)
         self.last_updated = datetime.datetime.now()
 
     @classmethod
@@ -118,4 +150,52 @@ class Participant(db.Model):
 
     def to_string(self):
         to_return = [str(self.id), str(self.contact_id), str(self.birthday), self.gender, self.diagnosis, str(self.diagnosis_date), str(self.ados), str(self.adir), str(self.other_diagnosis_tool), self.city, str(self.state), self.country, str(self.zip_code), str(self.latitude), str(self.longitude), str(self.last_updated)]
+        to_return.append(SUB_DELIM.join([resource.resource for resource in self.participant_resources.all()]))
+        to_return.append(SUB_DELIM.join([disorder.disorder for disorder in self.participant_related_disorders.all()]))
         return TEST_DELIM.join(to_return)
+
+class Resource(db.Model):
+
+    __tablename__ = 'resources'
+    id = db.Column(db.Integer, primary_key=True)
+    resource = db.Column(db.String(MAX_STR_LEN))
+
+    def __init__(self, resource):
+        self.resource = resource
+
+    @classmethod
+    def get_by_name(cls, resource):
+        return cls.query.filter(cls.resource == resource).first()
+
+    @classmethod
+    def get_all_str(cls):
+        all_resource_strs = [resource.resource for resource in cls.query.all()]
+        return TEST_DELIM.join(all_resource_strs)
+
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+
+
+class Disorder(db.Model):
+
+    __tablename__ = 'related_disorders'
+    id = db.Column(db.Integer, primary_key=True)
+    disorder = db.Column(db.String(MAX_STR_LEN))
+
+    def __init__(self, disorder):
+        self.disorder = disorder
+
+    @classmethod
+    def get_by_name(cls, disorder):
+        return cls.query.filter(cls.disorder == disorder).first()
+
+    @classmethod
+    def get_all_str(cls):
+        all_disorder_strs = [disorder.disorder for disorder in cls.query.all()]
+        return TEST_DELIM.join(all_disorder_strs) 
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()

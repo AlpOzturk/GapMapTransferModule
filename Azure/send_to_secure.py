@@ -1,21 +1,33 @@
 
 import sys
+import os
 import random
+import urllib
 
 AN_ARBITRARY_LARGE_NUMBER = 4242424242421337424242
 FILE_TYPE = '.txt'
+TARGET_URL = 'localhost'
+
+URL_SUCCESS_CODE = 200
+
+SUCCESS_STATE = 0
+FAILURE_STATE = 1
 
 TEST_DELIMITER = '\t'
 TEST_DATA = 'Bob\tJack\tbob@gmail.com\t\ty\t2015-02-18\t1993-02-13\tmale\ttypeI autism\t2000-03-12\t\ty\tnice tool\tPalo Alto\tCA\tUSA\t34000\t1.1234\t11.9884\tR1,R2,R5,R5\tgout,AIDS,flu'
 
 def process_info():
     raw_data, delimiter = get_params(sys.argv)
-
     out_file_name = str(random.randint(0, AN_ARBITRARY_LARGE_NUMBER)) + FILE_TYPE
     out_file = open(out_file_name, 'w')
     out_file.write(delimiter + '\n')
     out_file.write(raw_data)
     out_file.close()
+    code = urllib.urlopen('http://localhost:5000/processFile?file=scp_test.txt').getcode()
+    os.remove(out_file_name)
+    if code == URL_SUCCESS_CODE:
+        exit(SUCCESS_STATE)
+    exit(FAILURE_STATE)
 
 def get_params(args):
     num_args = len(args)

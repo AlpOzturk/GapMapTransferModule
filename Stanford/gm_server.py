@@ -1,15 +1,17 @@
 
+import os
 import subprocess
 import sys
 
 from flask import Flask, abort, request, session
 from flask.ext.sqlalchemy import SQLAlchemy
 #from flask import abort, flash, jsonify, render_template, redirect, request, session, url_for
-from credentials import DATABASE_URI, DATABASE_KEY 
+from credentials import DATABASE_URI, DATABASE_KEY, SCP_ARGS 
 
 TEST_DELIM = '->'
-SUCCESS_CODE = 'SUCCESS'
 SUB_DELIM = ','
+DEBUG_MODE = False
+ERROR_CODE = 400
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
@@ -17,15 +19,12 @@ app.config['SECRET_KEY'] = DATABASE_KEY
 app.debug = True
 db = SQLAlchemy(app)
 
-# ubuntu@gapmap.cloudapp.net
-REMOTE_HOST = 'gapmap.cloudapp.net'
-REMOTE_USER = 'ubuntu'
 # Have to import after initialization
 import models
 
 @app.route('/')
 def homepage():
-    abort(403)
+    return 'Under construction'
 
 # TODO: Remove this test code
 @app.route('/testDatabase', methods=['GET'])
@@ -51,32 +50,43 @@ def add_string_to_database():
 def process_data_file():
     file_name = request.args.get('file')
     if file_name:
-        #try:
+        try:
             transfer_file(file_name)
-            data_file = open(file_name, 'r')
-            data = parse_file(data_file)
-            result_str = enter_data(data)
-            data_file.close()
-        #except IOError:
-        #    result_str = 'IO ERROR'
+            data = parse_file(file_name)
+            return enter_data(data)
+        except IOError:
+            if DEBUG_MODE:
+                return 'IO ERROR'
+            else:
+                abort(ERROR_CODE)
         # TODO: Add exception handling for database errors
     else:
-        result_str = 'NO FILE NAME PROVIDED'
+        if DEBUG_MODE:
+            return 'NO FILE NAME PROVIDED'
+        else:
+            abort(ERROR_CODE)
     return result_str
+
+@app.route('/viewDatabase', methods=['GET'])
+def view_database():
+    return get_database()
+
 
 # Helpers
 
-
-# Working SCP cmd: scp -C -i .ssh/gapmap-azure.key ubuntu@gapmap.cloudapp.net:/home/ubuntu/alp_test_folder/scp_test.txt .
-
 def transfer_file(file_name):
-    subprocess.call(['scp', '-C', '-i', '/home/mobaxterm/.ssh/gapmap-azure.key', 'ubuntu@gapmap.cloudapp.net:/home/ubuntu/alp_test_folder/' + file_name, '.'])
+    scp_args = list(SCP_ARGS)
+    scp_args[-2] += file_name #Second to last arg is remote dir, add file name for full path
+    subprocess.call(scp_args)
 
-def parse_file(in_file):
+def parse_file(file_name):
+    in_file = open(file_name, 'r')
     file_contents = in_file.read()
     #sys.stderr.write('%s\n' % (file_contents))
     delim, raw_data = file_contents.split('\n')[:2]
     split_data = [data_str.lower() for data_str in raw_data.split(delim)]
+    in_file.close()
+    os.remove(file_name)
     return split_data
 
 def enter_data(data):
@@ -108,11 +118,11 @@ def enter_data(data):
     p_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in data[20].split(SUB_DELIM)]
     new_participant = models.Participant(p_map)
     new_participant.save()
-    all_contacts = models.Contact.get_all()
-    all_participants = models.Participant.get_all()
-    all_contacts_str = '<br>'.join([con.to_string() for con in all_contacts])
-    all_participants_str = '<br>'.join([par.to_string() for par in all_participants])
-    return '<br><br>'.join([contact.to_string(), new_participant.to_string(), all_contacts_str, all_participants_str, models.Resource.get_all_str(), models.Disorder.get_all_str()])
+    if DEBUG_MODE:
+        return get_database()
+    else:
+        to_return  = 'SUCCESS'
+    return to_return
 
 def get_by_name(target_class, name):
     instance = target_class.get_by_name(name)
@@ -120,6 +130,14 @@ def get_by_name(target_class, name):
         instance = target_class(name)
         instance.save()
     return instance
+
+def get_database():
+    all_contacts = models.Contact.get_all()
+    all_participants = models.Participant.get_all()
+    all_contacts_str = '<br>'.join([con.to_string() for con in all_contacts])
+    all_participants_str = '<br>'.join([par.to_string() for par in all_participants])
+    to_return = '<br><br>'.join([all_contacts_str, all_participants_str, models.Resource.get_all_str(), models.Disorder.get_all_str()])
+    return to_return
 
 # Run app
 

@@ -1,8 +1,11 @@
 
+import subprocess
+import sys
+
 from flask import Flask, abort, request, session
 from flask.ext.sqlalchemy import SQLAlchemy
 #from flask import abort, flash, jsonify, render_template, redirect, request, session, url_for
-from credentials import DATABASE_URI, DATABASE_KEY
+from credentials import DATABASE_URI, DATABASE_KEY 
 
 TEST_DELIM = '->'
 SUCCESS_CODE = 'SUCCESS'
@@ -14,6 +17,9 @@ app.config['SECRET_KEY'] = DATABASE_KEY
 app.debug = True
 db = SQLAlchemy(app)
 
+# ubuntu@gapmap.cloudapp.net
+REMOTE_HOST = 'gapmap.cloudapp.net'
+REMOTE_USER = 'ubuntu'
 # Have to import after initialization
 import models
 
@@ -45,21 +51,31 @@ def add_string_to_database():
 def process_data_file():
     file_name = request.args.get('file')
     if file_name:
-        try:
+        #try:
+            transfer_file(file_name)
             data_file = open(file_name, 'r')
             data = parse_file(data_file)
             result_str = enter_data(data)
             data_file.close()
-        except IOError:
-            result_str = 'IO ERROR'
+        #except IOError:
+        #    result_str = 'IO ERROR'
         # TODO: Add exception handling for database errors
     else:
         result_str = 'NO FILE NAME PROVIDED'
     return result_str
 
+# Helpers
+
+
+# Working SCP cmd: scp -C -i .ssh/gapmap-azure.key ubuntu@gapmap.cloudapp.net:/home/ubuntu/alp_test_folder/scp_test.txt .
+
+def transfer_file(file_name):
+    subprocess.call(['scp', '-C', '-i', '/home/mobaxterm/.ssh/gapmap-azure.key', 'ubuntu@gapmap.cloudapp.net:/home/ubuntu/alp_test_folder/' + file_name, '.'])
+
 def parse_file(in_file):
     file_contents = in_file.read()
-    delim, raw_data = file_contents.split('\n')
+    #sys.stderr.write('%s\n' % (file_contents))
+    delim, raw_data = file_contents.split('\n')[:2]
     split_data = [data_str.lower() for data_str in raw_data.split(delim)]
     return split_data
 

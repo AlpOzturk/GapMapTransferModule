@@ -5,18 +5,16 @@ import sys
 
 from flask import Flask, abort, request, session
 from flask.ext.sqlalchemy import SQLAlchemy
-#from flask import abort, flash, jsonify, render_template, redirect, request, session, url_for
 from credentials import DATABASE_URI, DATABASE_KEY, SCP_ARGS 
 
 TEST_DELIM = '->'
 SUB_DELIM = ','
-DEBUG_MODE = False
+
 ERROR_CODE = 400
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SECRET_KEY'] = DATABASE_KEY
-app.debug = True
 db = SQLAlchemy(app)
 
 # Have to import after initialization
@@ -24,27 +22,7 @@ import models
 
 @app.route('/')
 def homepage():
-    return 'Under construction'
-
-# TODO: Remove this test code
-@app.route('/testDatabase', methods=['GET'])
-def add_string_to_database():
-    to_add = request.args.get('toAdd')
-    if to_add:
-        new_test = models.Test(to_add)
-        new_test.save()
-    in_file_name = request.args.get('file')
-    if in_file_name:
-        in_file = open(in_file_name, 'r')
-        for line in in_file:
-            name = line.strip()
-            if name:
-                new_test = models.Test(name)
-                new_test.save()
-        in_file.close()
-    tests = models.Test.get_all()
-    strings = [test.name for test in tests]
-    return TEST_DELIM.join(strings)
+    abort(403)
 
 @app.route('/processFile', methods=['GET'])
 def process_data_file():
@@ -54,25 +32,25 @@ def process_data_file():
             transfer_file(file_name)
             data = parse_file(file_name)
             return enter_data(data)
-        except IOError:
-            if DEBUG_MODE:
-                return 'IO ERROR'
-            else:
-                abort(ERROR_CODE)
-        # TODO: Add exception handling for database errors
-    else:
-        if DEBUG_MODE:
-            return 'NO FILE NAME PROVIDED'
-        else:
+        except Exception as e:
+            print_to_console(str(e))
             abort(ERROR_CODE)
+    else:
+        abort(ERROR_CODE)
     return result_str
 
 @app.route('/viewDatabase', methods=['GET'])
 def view_database():
-    return get_database()
+    if app.debug:
+        return get_database()
+    else:
+        abort(403)
 
 
 # Helpers
+
+def print_to_console(msg):
+    sys.stderr.write('%s\n' % (msg))
 
 def transfer_file(file_name):
     scp_args = list(SCP_ARGS)
@@ -118,7 +96,7 @@ def enter_data(data):
     p_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in data[20].split(SUB_DELIM)]
     new_participant = models.Participant(p_map)
     new_participant.save()
-    if DEBUG_MODE:
+    if app.debug:
         return get_database()
     else:
         to_return  = 'SUCCESS'

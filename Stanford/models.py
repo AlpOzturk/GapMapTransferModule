@@ -19,26 +19,6 @@ participant_related_disorders_table = db.Table(
 )
 
 
-
-class Test(db.Model):
-
-    __tablename__ = 'test'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(MAX_STR_LEN))
-
-    def __init__(self, test_str):
-        if not test_str:
-            raise Exception('Need nonempty test string')
-        self.name = test_str
-
-    @classmethod
-    def get_all(cls):
-        return cls.query.all()
-
-    def save(self):
-        db.session.add(self)
-        db.session.commit()
-
 class Contact(db.Model):
 
     __tablename__ = 'contacts'
@@ -82,6 +62,7 @@ class Contact(db.Model):
     def to_string(self):
         to_return = [str(self.id), self.name, str(self.second_name), str(self.email), str(self.contactable), str(self.subscribable), str(self.date), str(self.last_updated)]
         return TEST_DELIM.join(to_return)
+
 
 class Participant(db.Model):
 
@@ -153,6 +134,7 @@ class Participant(db.Model):
         to_return.append(SUB_DELIM.join([resource.resource for resource in self.participant_resources.all()]))
         to_return.append(SUB_DELIM.join([disorder.disorder for disorder in self.participant_related_disorders.all()]))
         return TEST_DELIM.join(to_return)
+
 
 class Resource(db.Model):
 

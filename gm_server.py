@@ -5,8 +5,10 @@ import sys
 
 from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
+from flask_sslify import SSLify
 from credentials import DATABASE_URI, DATABASE_KEY
 
+DEBUG_FLAG = '-D'
 TEST_DELIM = '->'
 SUB_DELIM = ','
 
@@ -19,6 +21,7 @@ ERROR_CODE = 400
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SECRET_KEY'] = DATABASE_KEY
+sslify = SSLify(app)
 db = SQLAlchemy(app)
 
 # Have to import after initialization
@@ -116,4 +119,4 @@ def get_database():
 # Run app
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=DEBUG_FLAG in sys.argv)

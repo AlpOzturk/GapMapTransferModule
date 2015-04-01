@@ -3,12 +3,16 @@ import os
 import subprocess
 import sys
 
-from flask import Flask, abort, request, session
+from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
-from credentials import DATABASE_URI, DATABASE_KEY, SCP_ARGS 
+from credentials import DATABASE_URI, DATABASE_KEY
 
 TEST_DELIM = '->'
 SUB_DELIM = ','
+
+FORM_BOOLEANS = ['contactable', 'subscribable', 'ados', 'adir']
+FORM_INTEGERS = ['zip_code']
+FORM_FLOATS = ['latitude', 'longitude']
 
 ERROR_CODE = 400
 
@@ -24,22 +28,35 @@ import models
 def homepage():
     abort(403)
 
-@app.route('/processFile', methods=['GET'])
-def process_data_file():
-    file_name = request.args.get('file')
-    if file_name:
-        try:
-            transfer_file(file_name)
-            data = parse_file(file_name)
-            return enter_data(data)
-        except Exception as e:
-            print_to_console(str(e))
-            abort(ERROR_CODE)
+@app.route('/process_data', methods=['GET', 'POST'])
+def process_data():
+    if request.method == 'GET':
+        return redirect(url_for('test_input'))
+    form = request.form
+    if form:
+        data_map = get_data_map(form)
+        current_contact = get_contact(data_map)
+        resource_strs = data_map.get('resources', '').split(SUB_DELIM)
+        disorder_strs = data_map.get('related_disorders', '').split(SUB_DELIM)
+        data_map['contact_id'] = current_contact.id
+        data_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in resource_strs if resource_str]
+        data_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in disorder_strs if disorder_str]
+        new_participant = models.Participant(data_map)
+        new_participant.save()
+        if app.debug:
+            return get_database()
+        else:
+            return 'SUCCESS'
     else:
         abort(ERROR_CODE)
     return result_str
 
-@app.route('/viewDatabase', methods=['GET'])
+@app.route('/test_input', methods=['GET'])
+def test_input():
+    return render_template('test_input.html')
+
+
+@app.route('/view_database', methods=['GET'])
 def view_database():
     if app.debug:
         return get_database()
@@ -52,55 +69,34 @@ def view_database():
 def print_to_console(msg):
     sys.stderr.write('%s\n' % (msg))
 
-def transfer_file(file_name):
-    scp_args = list(SCP_ARGS)
-    scp_args[-2] += file_name #Second to last arg is remote dir, add file name for full path
-    subprocess.call(scp_args)
+def get_data_map(form):
+    data_map = dict()
+    for key in form:
+        value = form[key].strip()
+        if value or value:
+            data_map[key] = value
+    # TODO: Rm duplicated code, decompose and use lambdas?
+    for key in FORM_BOOLEANS:
+        if key in data_map:
+            data_map[key] = bool(data_map[key])
+        else:
+            data_map[key] = False
+    for key in FORM_INTEGERS:
+        if key in data_map:
+            data_map[key] = int(data_map[key])
+    for key in FORM_FLOATS:
+        if key in data_map:
+            data_map[key] = float(data_map[key])
+    return data_map
 
-def parse_file(file_name):
-    in_file = open(file_name, 'r')
-    file_contents = in_file.read()
-    #sys.stderr.write('%s\n' % (file_contents))
-    delim, raw_data = file_contents.split('\n')[:2]
-    split_data = [data_str.lower() for data_str in raw_data.split(delim)]
-    in_file.close()
-    os.remove(file_name)
-    return split_data
-
-def enter_data(data):
-    name, second_name, email, contactable, subscribable, date = data[:6]
-    contactable = bool(contactable)
-    subscribable = bool(subscribable)
-    contact = models.Contact.get_by_email(email) if email else None
+def get_contact(data_map):
+    contact = models.Contact.get_by_email(data_map.get('email', None))
     if contact:
-        contact.update(name, second_name, email, contactable, subscribable, date)
+        contact.update(data_map)
     else:
-        contact = models.Contact(name, second_name, email, contactable, subscribable, date)
-    contact.save()
-    p_map = dict()
-    p_map['contact_id'] = contact.id
-    p_map['birthday'] = data[6]
-    p_map['gender'] = data[7]
-    p_map['diagnosis'] = data[8]
-    p_map['diagnosis_date'] = data[9]
-    p_map['ados'] = bool(data[10])
-    p_map['adir'] = bool(data[11])
-    p_map['other_diagnosis_tool'] = data[12]
-    p_map['city'] = data[13]
-    p_map['state'] = data[14]
-    p_map['country'] = data[15]
-    p_map['zip_code'] = int(data[16])
-    p_map['latitude'] = float(data[17])
-    p_map['longitude'] = float(data[18])
-    p_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in data[19].split(SUB_DELIM)]
-    p_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in data[20].split(SUB_DELIM)]
-    new_participant = models.Participant(p_map)
-    new_participant.save()
-    if app.debug:
-        return get_database()
-    else:
-        to_return  = 'SUCCESS'
-    return to_return
+        contact = models.Contact(data_map)
+    contact.save() 
+    return contact
 
 def get_by_name(target_class, name):
     instance = target_class.get_by_name(name)

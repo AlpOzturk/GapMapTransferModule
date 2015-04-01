@@ -31,8 +31,8 @@ class Contact(db.Model):
     date = db.Column(db.Date)
     last_updated = db.Column(db.DateTime)
 
-    def __init__(self, name, second_name, email, contactable, subscribable, date):
-        self.update(name, second_name, email, contactable, subscribable, date)
+    def __init__(self, param_map):
+        self.update(param_map)
 
     @classmethod
     def get_all(cls):
@@ -40,20 +40,19 @@ class Contact(db.Model):
 
     @classmethod
     def get_by_email(cls, email):
-        return cls.query.filter(cls.email == email).first() 
+        if email:
+            return cls.query.filter(cls.email == email).first() 
+        return None
 
-    def update(self, name, second_name, email, contactable, subscribable, date):
-        if name and date:
-            # Mandatory: name, contactable, subscribable, date
-            self.name = name
-            self.second_name = second_name if second_name else None
-            self.email = email if email else None
-            self.contactable = contactable
-            self.subscribable = subscribable
-            self.date = datetime.datetime.strptime(date, DATE_FORMAT)
-            self.last_updated = datetime.datetime.now()
-        else:
-            raise Exception('Missing mandatory field')        
+    def update(self, param_map):
+        # Mandatory: name, contactable, subscribable, date
+        self.name = param_map['name']
+        self.second_name = param_map.get('second_name', None)
+        self.email = param_map.get('email', None)
+        self.contactable = param_map['contactable']
+        self.subscribable = param_map['subscribable']
+        self.date = datetime.datetime.strptime(param_map['date'], DATE_FORMAT)
+        self.last_updated = datetime.datetime.now()     
 
     def save(self):
         db.session.add(self)

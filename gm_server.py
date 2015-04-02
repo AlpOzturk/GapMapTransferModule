@@ -1,18 +1,16 @@
 
-import os
-import subprocess
 import sys
 
 from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask_sslify import SSLify
-from credentials import DATABASE_URI, DATABASE_KEY, FORM_PASSWORD, IP_WHITELIST
+from credentials import DATABASE_URI, DATABASE_KEY, IP_WHITELIST, TEST_PASSWORD
 
 DEBUG_FLAG = '-D'
 NO_IP_FILTER_FLAG = '-NoIP'
 NO_PASSWORD_FLAG = '-NoPass'
 
-TEST_PASSWORD = 'abc123'
+TEST_PASSWORD = 'abc123' # If changed, update in test_input.html as well
 TEST_DELIM = '->'
 
 FORM_BOOLEANS = ['contactable', 'subscribable', 'ados', 'adir']
@@ -97,7 +95,7 @@ def get_ip(request):
     return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
 
 def password_authorized(password):
-    return app.config['NoPass'] or password == FORM_PASSWORD
+    return app.config['NoPass'] or password == TEST_PASSWORD
 
 def get_data_map(form):
     data_map = dict()

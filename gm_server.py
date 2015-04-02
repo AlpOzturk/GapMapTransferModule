@@ -6,15 +6,13 @@ import sys
 from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask_sslify import SSLify
-from credentials import DATABASE_URI, DATABASE_KEY
+from credentials import DATABASE_URI, DATABASE_KEY, IP_WHITELIST
 
 DEBUG_FLAG = '-D'
+NO_IP_FILTER_FLAG = '-NoIP'
+
 TEST_DELIM = '->'
 SUB_DELIM = ','
-
-FORM_BOOLEANS = ['contactable', 'subscribable', 'ados', 'adir']
-FORM_INTEGERS = ['zip_code']
-FORM_FLOATS = ['latitude', 'longitude']
 
 ERROR_CODE = 400
 
@@ -23,6 +21,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SECRET_KEY'] = DATABASE_KEY
 sslify = SSLify(app)
 db = SQLAlchemy(app)
+
+FORM_BOOLEANS = ['contactable', 'subscribable', 'ados', 'adir']
+FORM_INTEGERS = ['zip_code']
+FORM_FLOATS = ['latitude', 'longitude']
 
 # Have to import after initialization
 import models
@@ -33,30 +35,34 @@ def homepage():
 
 @app.route('/process_data', methods=['GET', 'POST'])
 def process_data():
-    if request.method == 'GET':
-        return redirect(url_for('test_input'))
-    form = request.form
-    if form:
-        data_map = get_data_map(form)
-        current_contact = get_contact(data_map)
-        resource_strs = data_map.get('resources', '').split(SUB_DELIM)
-        disorder_strs = data_map.get('related_disorders', '').split(SUB_DELIM)
-        data_map['contact_id'] = current_contact.id
-        data_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in resource_strs if resource_str]
-        data_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in disorder_strs if disorder_str]
-        new_participant = models.Participant(data_map)
-        new_participant.save()
-        if app.debug:
-            return get_database()
+    if ip_authorized(request):
+        if request.method == 'GET':
+            return redirect(url_for('test_input'))
+        form = request.form
+        if form:
+            data_map = get_data_map(form)
+            current_contact = get_contact(data_map)
+            resource_strs = data_map.get('resources', '').split(SUB_DELIM)
+            disorder_strs = data_map.get('related_disorders', '').split(SUB_DELIM)
+            data_map['contact_id'] = current_contact.id
+            data_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in resource_strs if resource_str]
+            data_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in disorder_strs if disorder_str]
+            new_participant = models.Participant(data_map)
+            new_participant.save()
+            if app.debug:
+                return get_database()
+            else:
+                return 'SUCCESS'
         else:
-            return 'SUCCESS'
-    else:
-        abort(ERROR_CODE)
-    return result_str
+            abort(ERROR_CODE)
+        return result_str
+    abort(403)
 
 @app.route('/test_input', methods=['GET'])
 def test_input():
-    return render_template('test_input.html')
+    if ip_authorized(request):
+        return render_template('test_input.html')
+    abort(403)
 
 
 @app.route('/view_database', methods=['GET'])
@@ -66,11 +72,23 @@ def view_database():
     else:
         abort(403)
 
+@app.route('/whitelist_ip', methods=['GET'])
+def whitelist_ip():
+    ip = get_ip(request)
+    IP_WHITELIST.add(ip)
+    return "Added: " + ip + ". Whitelist: " + str(IP_WHITELIST)
 
 # Helpers
 
 def print_to_console(msg):
     sys.stderr.write('%s\n' % (msg))
+
+def ip_authorized(request):
+    ip = get_ip(request)
+    return app.config['NoIP'] or ip in IP_WHITELIST
+
+def get_ip(request):
+    return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
 
 def get_data_map(form):
     data_map = dict()
@@ -78,7 +96,6 @@ def get_data_map(form):
         value = form[key].strip()
         if value or value:
             data_map[key] = value
-    # TODO: Rm duplicated code, decompose and use lambdas?
     for key in FORM_BOOLEANS:
         if key in data_map:
             data_map[key] = bool(data_map[key])
@@ -119,4 +136,5 @@ def get_database():
 # Run app
 
 if __name__ == '__main__':
+    app.config['NoIP'] = NO_IP_FILTER_FLAG in sys.argv
     app.run(debug=DEBUG_FLAG in sys.argv)

@@ -6,15 +6,22 @@ import sys
 from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask_sslify import SSLify
-from credentials import DATABASE_URI, DATABASE_KEY, IP_WHITELIST
+from credentials import DATABASE_URI, DATABASE_KEY, FORM_PASSWORD, IP_WHITELIST
 
 DEBUG_FLAG = '-D'
 NO_IP_FILTER_FLAG = '-NoIP'
+NO_PASSWORD_FLAG = '-NoPass'
 
+TEST_PASSWORD = 'abc123'
 TEST_DELIM = '->'
-SUB_DELIM = ','
+
+FORM_BOOLEANS = ['contactable', 'subscribable', 'ados', 'adir']
+FORM_INTEGERS = ['zip_code']
+FORM_FLOATS = ['latitude', 'longitude']
+SUB_DELIM = ',' # Delimiter for "list" data fields for participants
 
 ERROR_CODE = 400
+FORBIDDEN_CODE = 403
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
@@ -22,16 +29,12 @@ app.config['SECRET_KEY'] = DATABASE_KEY
 sslify = SSLify(app)
 db = SQLAlchemy(app)
 
-FORM_BOOLEANS = ['contactable', 'subscribable', 'ados', 'adir']
-FORM_INTEGERS = ['zip_code']
-FORM_FLOATS = ['latitude', 'longitude']
-
 # Have to import after initialization
 import models
 
 @app.route('/')
 def homepage():
-    abort(403)
+    abort(FORBIDDEN_CODE)
 
 @app.route('/process_data', methods=['GET', 'POST'])
 def process_data():
@@ -41,42 +44,45 @@ def process_data():
         form = request.form
         if form:
             data_map = get_data_map(form)
-            current_contact = get_contact(data_map)
-            resource_strs = data_map.get('resources', '').split(SUB_DELIM)
-            disorder_strs = data_map.get('related_disorders', '').split(SUB_DELIM)
-            data_map['contact_id'] = current_contact.id
-            data_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in resource_strs if resource_str]
-            data_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in disorder_strs if disorder_str]
-            new_participant = models.Participant(data_map)
-            new_participant.save()
-            if app.debug:
-                return get_database()
-            else:
-                return 'SUCCESS'
+            if password_authorized(data_map.get('password')):
+                current_contact = get_contact(data_map)
+                resource_strs = data_map.get('resources', '').split(SUB_DELIM)
+                disorder_strs = data_map.get('related_disorders', '').split(SUB_DELIM)
+                data_map['contact_id'] = current_contact.id
+                data_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in resource_strs if resource_str]
+                data_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in disorder_strs if disorder_str]
+                new_participant = models.Participant(data_map)
+                new_participant.save()
+                if app.debug:
+                    return get_database()
+                else:
+                    return 'SUCCESS'
+            abort(FORBIDDEN_CODE)
         else:
             abort(ERROR_CODE)
         return result_str
-    abort(403)
+    abort(FORBIDDEN_CODE)
 
 @app.route('/test_input', methods=['GET'])
 def test_input():
     if ip_authorized(request):
         return render_template('test_input.html')
-    abort(403)
+    abort(FORBIDDEN_CODE)
 
 
 @app.route('/view_database', methods=['GET'])
 def view_database():
     if app.debug:
         return get_database()
-    else:
-        abort(403)
+    abort(FORBIDDEN_CODE)
 
 @app.route('/whitelist_ip', methods=['GET'])
 def whitelist_ip():
-    ip = get_ip(request)
-    IP_WHITELIST.add(ip)
-    return "Added: " + ip + ". Whitelist: " + str(IP_WHITELIST)
+    if app.debug:
+        ip = get_ip(request)
+        IP_WHITELIST.add(ip)
+        return "Added: " + ip + ". Whitelist: " + str(IP_WHITELIST)
+    abort(FORBIDDEN_CODE)
 
 # Helpers
 
@@ -89,6 +95,9 @@ def ip_authorized(request):
 
 def get_ip(request):
     return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+
+def password_authorized(password):
+    return app.config['NoPass'] or password == FORM_PASSWORD
 
 def get_data_map(form):
     data_map = dict()
@@ -136,5 +145,7 @@ def get_database():
 # Run app
 
 if __name__ == '__main__':
-    app.config['NoIP'] = NO_IP_FILTER_FLAG in sys.argv
-    app.run(debug=DEBUG_FLAG in sys.argv)
+    flags = sys.argv[1:]
+    app.config['NoIP'] = NO_IP_FILTER_FLAG in flags
+    app.config['NoPass'] = NO_PASSWORD_FLAG in flags
+    app.run(debug=DEBUG_FLAG in flags)

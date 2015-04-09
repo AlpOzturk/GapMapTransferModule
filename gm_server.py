@@ -1,4 +1,5 @@
 
+import datetime
 import sys
 
 from flask import Flask, abort, redirect, request, render_template, session, url_for
@@ -9,6 +10,10 @@ from credentials import DATABASE_URI, DATABASE_KEY, IP_WHITELIST, FORM_PASSWORD
 DEBUG_FLAG = '-D'
 NO_IP_FILTER_FLAG = '-NoIP'
 NO_PASSWORD_FLAG = '-NoPass'
+SCARY_MESSAGE_FLAG = '-S'
+
+IP_LOG_FILE = 'ip_logs.txt'
+IP_LOG_DELIMITER = '\t'
 
 TEST_PASSWORD = 'abc123' # If changed, update in test_input.html as well
 TEST_DELIM = '->'
@@ -32,6 +37,8 @@ import models
 
 @app.route('/')
 def homepage():
+    if not ip_authorized(request):
+        log_ip(request, 'homepage')
     abort(FORBIDDEN_CODE)
 
 @app.route('/process_data', methods=['GET', 'POST'])
@@ -59,19 +66,22 @@ def process_data():
         else:
             abort(ERROR_CODE)
         return result_str
+    log_ip(request, 'process_data')
     abort(FORBIDDEN_CODE)
 
 @app.route('/test_input', methods=['GET'])
 def test_input():
-    if ip_authorized(request):
+    if ip_authorized(request) and app.debug:
         return render_template('test_input.html')
+    log_ip(request, 'test_input')
     abort(FORBIDDEN_CODE)
 
 
 @app.route('/view_database', methods=['GET'])
 def view_database():
-    if app.debug:
+    if app.debug and ip_authorized(request):
         return get_database()
+    log_ip(request, 'view_database')    
     abort(FORBIDDEN_CODE)
 
 @app.route('/whitelist_ip', methods=['GET'])
@@ -80,6 +90,7 @@ def whitelist_ip():
         ip = get_ip(request)
         IP_WHITELIST.add(ip)
         return "Added: " + ip + ". Whitelist: " + str(IP_WHITELIST)
+    log_ip(request, 'whitelist_ip') 
     abort(FORBIDDEN_CODE)
 
 # Helpers
@@ -90,6 +101,13 @@ def print_to_console(msg):
 def ip_authorized(request):
     ip = get_ip(request)
     return app.config['NoIP'] or ip in IP_WHITELIST
+
+def log_ip(request, page):
+    ip_log = open(IP_LOG_FILE, 'a')
+    ip = get_ip(request)
+    to_log = [ip, page, request.method, '\n']
+    ip_log.write(IP_LOG_DELIMITER.join(to_log))
+    ip_log.close()
 
 def get_ip(request):
     return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)

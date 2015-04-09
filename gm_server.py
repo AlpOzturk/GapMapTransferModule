@@ -1,7 +1,7 @@
 
-import datetime
 import sys
 
+from datetime import datetime
 from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
 from flask_sslify import SSLify
@@ -105,7 +105,7 @@ def ip_authorized(request):
 def log_ip(request, page):
     ip_log = open(IP_LOG_FILE, 'a')
     ip = get_ip(request)
-    to_log = [ip, page, request.method, '\n']
+    to_log = [ip, page, request.method, str(datetime.now()), '\n']
     ip_log.write(IP_LOG_DELIMITER.join(to_log))
     ip_log.close()
 

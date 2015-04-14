@@ -4,13 +4,8 @@ import sys
 from datetime import datetime
 from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
-from flask_sslify import SSLify
+#from flask_sslify import SSLify
 from credentials import DATABASE_URI, DATABASE_KEY, IP_WHITELIST, FORM_PASSWORD
-
-DEBUG_FLAG = '-D'
-NO_IP_FILTER_FLAG = '-NoIP'
-NO_PASSWORD_FLAG = '-NoPass'
-SCARY_MESSAGE_FLAG = '-S'
 
 IP_LOG_FILE = 'ip_logs.txt'
 IP_LOG_DELIMITER = '\t'
@@ -29,11 +24,12 @@ FORBIDDEN_CODE = 403
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SECRET_KEY'] = DATABASE_KEY
+#sslify = SSLify(app)
 db = SQLAlchemy(app)
 
-app.debug = True
-app.config['NoIP'] = True
-app.config['NoPass'] = True
+app.debug = True # DO NOT SET TO TRUE IF CONNECTED TO SENSITIVE DATABASE
+app.config['NoIP'] = False
+app.config['NoPass'] = False
 # Have to import after initialization
 import models
 
@@ -99,17 +95,14 @@ def print_to_console(msg):
     sys.stderr.write('%s\n' % (msg))
 
 def ip_authorized(request):
-    return True
     ip = get_ip(request)
     return app.config['NoIP'] or ip in IP_WHITELIST
 
+# Don't have write access, so only writes to console for now. Not visible through apache.
 def log_ip(request, page):
-    pass
-    #ip_log = open(IP_LOG_FILE, 'a')
-    #ip = get_ip(request)
-    #to_log = [ip, page, request.method, str(datetime.now()), '\n']
-    #ip_log.write(IP_LOG_DELIMITER.join(to_log))
-    #ip_log.close()
+    ip = get_ip(request)
+    to_log = [ip, page, request.method, str(datetime.now()), '\n']
+    print_to_console(IP_LOG_DELIMITER.join(to_log))
 
 def get_ip(request):
     return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
@@ -165,5 +158,4 @@ def get_database():
 
 if __name__ == '__main__':
     flags = sys.argv[1:]
-    #app.run(debug=DEBUG_FLAG in flags)
     app.run(debug=True)

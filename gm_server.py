@@ -29,16 +29,16 @@ FORBIDDEN_CODE = 403
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SECRET_KEY'] = DATABASE_KEY
-sslify = SSLify(app)
 db = SQLAlchemy(app)
 
+app.debug = True
+app.config['NoIP'] = True
+app.config['NoPass'] = True
 # Have to import after initialization
 import models
 
 @app.route('/')
 def homepage():
-    if not ip_authorized(request):
-        log_ip(request, 'homepage')
     abort(FORBIDDEN_CODE)
 
 @app.route('/process_data', methods=['GET', 'POST'])
@@ -71,7 +71,7 @@ def process_data():
 
 @app.route('/test_input', methods=['GET'])
 def test_input():
-    if ip_authorized(request) and app.debug:
+    if ip_authorized(request):
         return render_template('test_input.html')
     log_ip(request, 'test_input')
     abort(FORBIDDEN_CODE)
@@ -99,15 +99,17 @@ def print_to_console(msg):
     sys.stderr.write('%s\n' % (msg))
 
 def ip_authorized(request):
+    return True
     ip = get_ip(request)
     return app.config['NoIP'] or ip in IP_WHITELIST
 
 def log_ip(request, page):
-    ip_log = open(IP_LOG_FILE, 'a')
-    ip = get_ip(request)
-    to_log = [ip, page, request.method, str(datetime.now()), '\n']
-    ip_log.write(IP_LOG_DELIMITER.join(to_log))
-    ip_log.close()
+    pass
+    #ip_log = open(IP_LOG_FILE, 'a')
+    #ip = get_ip(request)
+    #to_log = [ip, page, request.method, str(datetime.now()), '\n']
+    #ip_log.write(IP_LOG_DELIMITER.join(to_log))
+    #ip_log.close()
 
 def get_ip(request):
     return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
@@ -163,6 +165,5 @@ def get_database():
 
 if __name__ == '__main__':
     flags = sys.argv[1:]
-    app.config['NoIP'] = NO_IP_FILTER_FLAG in flags
-    app.config['NoPass'] = NO_PASSWORD_FLAG in flags
-    app.run(debug=DEBUG_FLAG in flags)
+    #app.run(debug=DEBUG_FLAG in flags)
+    app.run(debug=True)

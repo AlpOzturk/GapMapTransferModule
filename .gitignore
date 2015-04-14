@@ -1,5 +1,4 @@
 *.exe
 *.pyc
 *.txt
-alembic.ini
 credentials.py

@@ -105,7 +105,8 @@ def log_ip(request, page):
     print_to_console(IP_LOG_DELIMITER.join(to_log))
 
 def get_ip(request):
-    return request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
+    headers_list = request.headers.getlist("X-Forwarded-For")
+    return headers_list[0] if headers_list else request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
 
 def password_authorized(password):
     correct_password = TEST_PASSWORD if app.debug else FORM_PASSWORD

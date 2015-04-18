@@ -5,7 +5,7 @@ from datetime import datetime
 from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
 #from flask_sslify import SSLify
-from credentials import DATABASE_URI, DATABASE_KEY, IP_WHITELIST, FORM_PASSWORD
+from credentials import DATABASE_URI, DATABASE_KEY, IP_WHITELIST, FORM_PASSWORD, DEBUG_FLAG, NO_IP_FLAG, NO_PASS_FLAG
 
 IP_LOG_FILE = 'ip_logs.txt'
 IP_LOG_DELIMITER = '\t'
@@ -27,9 +27,9 @@ app.config['SECRET_KEY'] = DATABASE_KEY
 #sslify = SSLify(app)
 db = SQLAlchemy(app)
 
-app.debug = True # DO NOT SET TO TRUE IF CONNECTED TO SENSITIVE DATABASE
-app.config['NoIP'] = False
-app.config['NoPass'] = False
+app.debug = DEBUG_FLAG # DO NOT SET TO TRUE IF CONNECTED TO SENSITIVE DATABASE
+app.config['NoIP'] = NO_IP_FLAG
+app.config['NoPass'] = NO_PASS_FLAG
 # Have to import after initialization
 import models
 

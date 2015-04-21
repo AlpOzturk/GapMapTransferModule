@@ -56,7 +56,7 @@ class Contact(db.Model):
 
     def save(self):
         db.session.add(self)
-        db.session.commit()
+        try_commit()
 
     def to_string(self):
         to_return = [str(self.id), self.name, str(self.second_name), str(self.email), str(self.contactable), str(self.subscribable), str(self.date), str(self.last_updated)]
@@ -126,7 +126,7 @@ class Participant(db.Model):
 
     def save(self):
         db.session.add(self)
-        db.session.commit()
+        try_commit()
 
     def to_string(self):
         to_return = [str(self.id), str(self.contact_id), str(self.birthday), self.gender, self.diagnosis, str(self.diagnosis_date), str(self.ados), str(self.adir), str(self.other_diagnosis_tool), self.city, str(self.state), self.country, str(self.zip_code), str(self.latitude), str(self.longitude), str(self.last_updated)]
@@ -153,10 +153,9 @@ class Resource(db.Model):
         all_resource_strs = [resource.resource for resource in cls.query.all()]
         return TEST_DELIM.join(all_resource_strs)
 
-
     def save(self):
         db.session.add(self)
-        db.session.commit()
+        try_commit()
 
 
 class Disorder(db.Model):
@@ -179,4 +178,15 @@ class Disorder(db.Model):
 
     def save(self):
         db.session.add(self)
+        try_commit()
+
+
+# Helpers
+
+def try_commit():
+    try:
         db.session.commit()
+    except:
+        print 'Transaction failed'
+        db.session.rollback()
+        raise Exception('Failed commit')

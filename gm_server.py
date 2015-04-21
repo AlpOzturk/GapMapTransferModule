@@ -1,10 +1,11 @@
 
+##### IMPORTS - CONSTANTS - INITIALIZATION #####
+
 import sys
 
 from datetime import datetime
 from flask import Flask, abort, redirect, request, render_template, session, url_for
 from flask.ext.sqlalchemy import SQLAlchemy
-#from flask_sslify import SSLify
 from credentials import DATABASE_URI, DATABASE_KEY, IP_WHITELIST, FORM_PASSWORD, DEBUG_FLAG, NO_IP_FLAG, NO_PASS_FLAG
 
 IP_LOG_FILE = 'ip_logs.txt'
@@ -16,6 +17,7 @@ TEST_DELIM = '->'
 FORM_BOOLEANS = ['contactable', 'subscribable', 'ados', 'adir']
 FORM_INTEGERS = ['zip_code']
 FORM_FLOATS = ['latitude', 'longitude']
+FORM_MANDATORY = ['name', 'date', 'birthday', 'gender', 'diagnosis', 'city', 'country', 'latitude', 'longitude']
 SUB_DELIM = ',' # Delimiter for "list" data fields for participants
 
 ERROR_CODE = 400
@@ -24,7 +26,6 @@ FORBIDDEN_CODE = 403
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
 app.config['SECRET_KEY'] = DATABASE_KEY
-#sslify = SSLify(app)
 db = SQLAlchemy(app)
 
 app.debug = DEBUG_FLAG # DO NOT SET TO TRUE IF CONNECTED TO SENSITIVE DATABASE
@@ -32,6 +33,8 @@ app.config['NoIP'] = NO_IP_FLAG
 app.config['NoPass'] = NO_PASS_FLAG
 # Have to import after initialization
 import models
+
+##### MAIN ROUTING #####
 
 @app.route('/')
 def homepage():
@@ -45,20 +48,23 @@ def process_data():
         form = request.form
         if form:
             data_map = get_data_map(form)
-            if password_authorized(data_map.get('password')):
-                current_contact = get_contact(data_map)
-                resource_strs = data_map.get('resources', '').split(SUB_DELIM)
-                disorder_strs = data_map.get('related_disorders', '').split(SUB_DELIM)
-                data_map['contact_id'] = current_contact.id
-                data_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in resource_strs if resource_str]
-                data_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in disorder_strs if disorder_str]
-                new_participant = models.Participant(data_map)
-                new_participant.save()
-                if app.debug:
-                    return get_database()
-                else:
-                    return 'SUCCESS'
-            abort(FORBIDDEN_CODE)
+            if valid_data_map(data_map):
+                if password_authorized(data_map.get('password')):
+                    current_contact = get_contact(data_map)
+                    resource_strs = data_map.get('resources', '').split(SUB_DELIM)
+                    disorder_strs = data_map.get('related_disorders', '').split(SUB_DELIM)
+                    data_map['contact_id'] = current_contact.id
+                    data_map['resources'] = [get_by_name(models.Resource, resource_str) for resource_str in resource_strs if resource_str]
+                    data_map['related_disorders'] = [get_by_name(models.Disorder, disorder_str) for disorder_str in disorder_strs if disorder_str]
+                    new_participant = models.Participant(data_map)
+                    new_participant.save()
+                    if app.debug:
+                        return get_database()
+                    else:
+                        return 'SUCCESS'
+                abort(FORBIDDEN_CODE)
+            else:
+                abort(ERROR_CODE)
         else:
             abort(ERROR_CODE)
         return result_str
@@ -89,7 +95,7 @@ def whitelist_ip():
     log_ip(request, 'whitelist_ip') 
     abort(FORBIDDEN_CODE)
 
-# Helpers
+##### HELPER FUNCTIONS #####
 
 def print_to_console(msg):
     sys.stderr.write('%s\n' % (msg))
@@ -116,7 +122,7 @@ def get_data_map(form):
     data_map = dict()
     for key in form:
         value = form[key].strip()
-        if value or value:
+        if value:
             data_map[key] = value
     for key in FORM_BOOLEANS:
         if key in data_map:
@@ -130,6 +136,13 @@ def get_data_map(form):
         if key in data_map:
             data_map[key] = float(data_map[key])
     return data_map
+
+def valid_data_map(data_map):
+    for field in FORM_MANDATORY:
+        if field not in data_map:
+            return False
+    return True
+
 
 def get_contact(data_map):
     contact = models.Contact.get_by_email(data_map.get('email', None))
@@ -155,8 +168,7 @@ def get_database():
     to_return = '<br><br>'.join([all_contacts_str, all_participants_str, models.Resource.get_all_str(), models.Disorder.get_all_str()])
     return to_return
 
-# Run app
+##### RUN APP #####
 
 if __name__ == '__main__':
-    flags = sys.argv[1:]
-    app.run(debug=True)
+    app.run(debug=DEBUG_FLAG)
